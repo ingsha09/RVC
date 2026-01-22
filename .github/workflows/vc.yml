@@ -1,0 +1,46 @@
+name: Voice Conversion Pipeline
+
+# Manual trigger only
+on:
+  workflow_dispatch:
+    inputs:
+      audio_file:
+        description: 'Input audio file path in repo'
+        required: true
+        default: 'input.wav'
+
+jobs:
+  vc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      - name: Upgrade pip
+        run: pip install --upgrade pip
+
+      - name: Install dependencies
+        run: |
+          pip install torch==2.2.0 torchaudio==2.2.0 faiss-cpu pyworld praat-parselmouth librosa gdown
+
+      - name: Download index and model from Google Drive
+        run: |
+          mkdir -p models
+          gdown --id 1gpk10q7DdwGgwa3uwoA_23kdpUFlE74W -O models/index.npy
+          gdown --id 1RekGRj8oX5wQB5rLXWecN-XPol6FpXpT -O models/model.pth
+
+      - name: Run voice conversion
+        run: |
+          python infer/run_vc.py --input ${{ github.event.inputs.audio_file }} --output output.wav --index models/index.npy --model models/model.pth
+
+      - name: Upload converted audio
+        uses: actions/upload-artifact@v3
+        with:
+          name: converted-audio
+          path: output.wav
