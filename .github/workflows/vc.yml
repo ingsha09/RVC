@@ -23,6 +23,7 @@ jobs:
 
       - name: Download model and index from Drive
         run: |
+          mkdir -p models
           gdown --id 1gpk10q7DdwGgwa3uwoA_23kdpUFlE74W -O models/index.npy
           gdown --id 1RekGRj8oX5wQB5rLXWecN-XPol6FpXpT -O models/model.pth
 
