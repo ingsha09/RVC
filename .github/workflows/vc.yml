@@ -1,45 +1,36 @@
-name: Run RVC Voice Conversion
+name: RVC Voice Conversion
 
-# Manual trigger
+# Make this workflow manual
 on:
   workflow_dispatch:
-    inputs:
-      input_audio:
-        description: 'Input audio file path in repo (e.g., Vocals.mp3)'
-        required: true
-        default: 'Vocals.mp3'
-      output_audio:
-        description: 'Output audio file path'
-        required: true
-        default: 'output.wav'
 
 jobs:
-  voice_conversion:
+  rvc:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.12'
 
-    - name: Install dependencies
+    - name: Upgrade pip and install dependencies
       run: |
-        pip install --upgrade pip
-        pip install numpy<2 torch==2.2.0 torchaudio==2.2.0 pyworld praat-parselmouth faiss-cpu gdown
+        python -m pip install --upgrade pip
+        pip install "numpy<2" "torch==2.2.0" "torchaudio==2.2.0" pyworld praat-parselmouth faiss-cpu gdown
+
+    - name: Download model and index from Drive
+      run: |
+        gdown "https://drive.google.com/uc?id=1gpk10q7DdwGgwa3uwoA_23kdpUFlE74W" -O models/index.npy
+        gdown "https://drive.google.com/uc?id=1RekGRj8oX5wQB5rLXWecN-XPol6FpXpT" -O models/model.pth
 
     - name: Run Voice Conversion
       run: |
         python infer/run_vc.py \
-          --input "${{ github.event.inputs.input_audio }}" \
-          --output "${{ github.event.inputs.output_audio }}" \
-          --tgt_sr 22050
-
-    - name: Upload output
-      uses: actions/upload-artifact@v4
-      with:
-        name: output-audio
-        path: ${{ github.event.inputs.output_audio }}
+          --input "input_audio/Vocals.mp3" \
+          --output "output.wav" \
+          --index "models/index.npy" \
+          --model "models/model.pth"
