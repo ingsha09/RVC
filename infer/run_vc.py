@@ -1,56 +1,72 @@
-import argparse
 import os
 import sys
-import gdown
+import argparse
 import numpy as np
+import gdown
 import torch
 
-# Ensure repo root is in PYTHONPATH
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add your repo to path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from modules.vc.pipeline import Pipeline
+# Import Pipeline
+from infer.modules.vc.pipeline import Pipeline
 
-def download_drive_file(url, output_path):
-    """Download file from Google Drive using gdown if it doesn't exist."""
-    if not os.path.exists(output_path):
-        print(f"Downloading {output_path} ...")
-        gdown.download(url, output_path, quiet=False)
-    else:
-        print(f"{output_path} already exists, skipping download.")
+# --------------------------
+# Index wrapper for Pipeline
+# --------------------------
+class IndexWrapper:
+    """
+    Wraps a NumPy dict/array into an object with attributes
+    expected by Pipeline.
+    """
+    def __init__(self, index_dict):
+        self.x_pad = index_dict.get("x_pad", 0)
+        self.x_query = index_dict.get("x_query", 0)
+        self.x_center = index_dict.get("x_center", 0)
+        self.x_max = index_dict.get("x_max", 0)
+        self.is_half = index_dict.get("is_half", False)
+        self.index_data = index_dict
 
-def main():
-    parser = argparse.ArgumentParser(description="RVC Voice Conversion")
-    parser.add_argument("--input", required=True, help="Path to input audio")
-    parser.add_argument("--output", required=True, help="Path to output audio")
-    parser.add_argument("--index", required=True, help="Index file path or Drive URL")
-    parser.add_argument("--model", required=True, help="Model file path or Drive URL")
-    parser.add_argument("--tgt_sr", default=22050, type=int, help="Target sampling rate")
-    args = parser.parse_args()
+# --------------------------
+# Download model/index if not present
+# --------------------------
+INDEX_URL = "https://drive.google.com/uc?id=1gpk10q7DdwGgwa3uwoA_23kdpUFlE74W"
+MODEL_URL = "https://drive.google.com/uc?id=1RekGRj8oX5wQB5rLXWecN-XPol6FpXpT"
 
-    # Download index/model if they are URLs
-    if args.index.startswith("http"):
-        download_drive_file(args.index, "index.npy")
-        index_path = "index.npy"
-    else:
-        index_path = args.index
+os.makedirs("models", exist_ok=True)
+index_path = "models/index.npy"
+model_path = "models/model.pth"
 
-    if args.model.startswith("http"):
-        download_drive_file(args.model, "model.pth")
-        model_path = "model.pth"
-    else:
-        model_path = args.model
+if not os.path.exists(index_path):
+    gdown.download(INDEX_URL, index_path, quiet=False)
 
-    # Load index and model
-    print("Loading index and model...")
-    index = np.load(index_path, allow_pickle=True)
+if not os.path.exists(model_path):
+    gdown.download(MODEL_URL, model_path, quiet=False)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    pipeline = Pipeline(tgt_sr=args.tgt_sr, config=index)
+# --------------------------
+# Argument parser
+# --------------------------
+parser = argparse.ArgumentParser(description="Run voice conversion")
+parser.add_argument("--input", type=str, required=True, help="Input audio path")
+parser.add_argument("--output", type=str, default="output.wav", help="Output path")
+parser.add_argument("--tgt_sr", type=int, default=22050, help="Target sample rate")
+args = parser.parse_args()
 
-    # Run voice conversion
-    print(f"Processing {args.input} ...")
-    pipeline.vc(args.input, args.output)
-    print(f"Output saved to {args.output}")
+# --------------------------
+# Load index
+# --------------------------
+index = np.load(index_path, allow_pickle=True).item()
+wrapped_index = IndexWrapper(index)
 
-if __name__ == "__main__":
-    main()
+# --------------------------
+# Initialize pipeline
+# --------------------------
+pipeline = Pipeline(tgt_sr=args.tgt_sr, config=wrapped_index)
+
+# --------------------------
+# Run conversion
+# --------------------------
+pipeline.vc(input_audio_path=args.input, output_audio_path=args.output,
+            model_path=model_path)
+
+print(f"Voice conversion done! Output saved at {args.output}")
