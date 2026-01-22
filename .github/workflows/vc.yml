@@ -1,34 +1,40 @@
-name: RVC VC
+name: RVC Voice Conversion
 
 on:
-  workflow_dispatch:  # manual trigger
+  workflow_dispatch:  # Manual trigger
 
 jobs:
-  vc:
+  run-rvc:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.12
 
       - name: Install dependencies
         run: |
-          pip install numpy<2 torch==2.2.0 torchaudio==2.2.0 pyworld praat-parselmouth faiss-cpu gdown
+          pip install --upgrade pip
+          pip install "numpy<2" torch==2.2.0 torchaudio==2.2.0 pyworld praat-parselmouth faiss-cpu gdown
 
-      - name: Download model files from Google Drive
+      - name: Download model and index from Drive
         run: |
-          # Replace FILE_ID with the actual ID from the shareable link
           gdown --id 1gpk10q7DdwGgwa3uwoA_23kdpUFlE74W -O models/index.npy
           gdown --id 1RekGRj8oX5wQB5rLXWecN-XPol6FpXpT -O models/model.pth
 
+      - name: Place input audio
+        run: |
+          mkdir -p input
+          cp "Vocals.mp3" input/Vocals.mp3  # Replace with your audio file in repo
+
       - name: Run voice conversion
         run: |
-          python -m infer.run_vc \
-            --input refs/heads/main/Vocals.mp3 \
+          python infer/run_vc.py \
+            --input input/Vocals.mp3 \
             --output output.wav \
             --index models/index.npy \
             --model models/model.pth
@@ -36,5 +42,5 @@ jobs:
       - name: Upload output
         uses: actions/upload-artifact@v4
         with:
-          name: output-wav
+          name: rvc-output
           path: output.wav
