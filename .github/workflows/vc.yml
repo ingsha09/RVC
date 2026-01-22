@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -40,7 +40,7 @@ jobs:
           python infer/run_vc.py --input ${{ github.event.inputs.audio_file }} --output output.wav --index models/index.npy --model models/model.pth
 
       - name: Upload converted audio
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: converted-audio
           path: output.wav
